@@ -23,8 +23,8 @@ function generateRandomPoints(center, radius, count) {
 */
 
 function generateRandomPoint(center, radius) {
-    var x0 = center.lng
-    var y0 = center.lat;
+    var x0 = center.lat
+    var y0 = center.lng;
 
     // Convert Radius from meter to degrees
     var rd = radius / 1113000;
@@ -89,12 +89,17 @@ map.on('load', function() {
     //  Add a marker at the result's coordinates
     geocoder.on('result', function(e) {
       map.getSource('single-point').setData(e.result.geometry);
-      var latLong = {'lat': e.result.center[0], 'lng': e.result.center[1]};
+      var latLong = {'lng': e.result.center[0], 'lat': e.result.center[1]};
       var startingPoint = [e.result.center[0], e.result.center[1]];
 
-      potentialRoutePoints = generateRandomPoints(latLong, 5000, 14);
+      potentialRoutePoints = generateRandomPoints(latLong, 5000, 19);
       potentialRoutePoints.unshift(startingPoint);
-      makeRequest();
+      makeRequest(potentialRoutePoints);
+    //   potentialRoutePoints = snapCoordinates(potentialRoutePoints);
+    //   potentialRoutePoints.then((response) => {
+    //     makeRequest(response);
+    //   })
+
     });
 
     map.addSource('route', {
@@ -156,20 +161,31 @@ map.on('load', function() {
 // Generating the route - 5 miles for now
 var nothing = turf.featureCollection([]);
 
-function assembleMatrixURL() {
-    return 'https://api.mapbox.com/directions-matrix/v1/mapbox/driving/' + potentialRoutePoints.join(';') + 
+function assembleMatrixURL(points) {
+    return 'https://api.mapbox.com/directions-matrix/v1/mapbox/walking/' + points.join(';') + 
     '?annotations=distance&access_token=' + mapboxgl.accessToken;
 }
 
 function assembleOptURL(points) {
-    return 'https://api.mapbox.com/optimized-trips/v1/mapbox/driving/' + points.join(';') +
-     '?geometries=geojson&overview=full&roundtrip=true&access_token='+ mapboxgl.accessToken;
+    // var radiuses = ''
+    // for (var i = 0; i < points.length; ++i) {
+    //     radiuses += '50;'
+    // }
+
+    // radiuses = radiuses.slice(0, -1);
+
+    // return 'https://api.mapbox.com/matching/v5/mapbox/walking/' + points.join(';') +
+    // '?geometries=geojson&overview=full&radiuses=' + radiuses + '&access_token=' + mapboxgl.accessToken;
+
+    return 'https://api.mapbox.com/optimized-trips/v1/mapbox/walking/' + points.join(';') +
+    '?geometries=geojson&overview=full&roundtrip=true&access_token='+ mapboxgl.accessToken;
 }
 
-function makeRequest() {
+function makeRequest(coordinates) {
     var noRoute = turf.featureCollection([]);
+    console.log(coordinates);
 
-    fetch(assembleMatrixURL())
+    fetch(assembleMatrixURL(coordinates))
     .then((response) => {
         return response.json();
     }).then((response) => {
@@ -179,51 +195,42 @@ function makeRequest() {
         var currentPath = [];
         var cycleLength = 5000;
 
-        for (var i = 0; i < 15; ++i) {
+        for (var i = 0; i < coordinates.length; ++i) {
             marked[i] = false;
         }
 
         // Pushing the index that corresponds to the coordinates of the starting point
         currentPath.push(0);
 
-        genPerms(response.distances, marked, cycleLength, 0, 0, 0, currentPath, bestPath);
+        genPerms(response.distances, marked, cycleLength, 0, 0, 0, currentPath, bestPath, coordinates.length);
         console.log(bestPath);
 
         // Putting the bestPath coordinates into an array
         var bestPathCoordinates = [];
         for (var i = 0; i < bestPath.length; ++i) {
-            bestPathCoordinates[i] = potentialRoutePoints[bestPath[i]];
+            bestPathCoordinates[i] = coordinates[bestPath[i]];
         }
-        console.log(bestPathCoordinates);
+
         // Make a call to the Optimization API
         fetch(assembleOptURL(bestPathCoordinates))
         .then((responseOpt) => {
             return responseOpt.json();
         }).then((responseOpt) => {
-            // Create a GeoJSON feature collection
+            console.log(responseOpt);
+            // With Optimization Call
             var routeGeoJSON = turf.featureCollection([turf.feature(responseOpt.trips[0].geometry)]);
             console.log(responseOpt.trips[0].distance);
 
-            if (!responseOpt.trips[0]) {
-                routeGeoJSON = noRoute;
-            } else {
-                // Update the 'route' source by getting the route source
-                // and setting the data equal to routeGeoJSON
-                map.getSource('route').setData(routeGeoJSON);
-            }
+            // With Matching Call
+            // var routeGeoJSON = turf.featureCollection([turf.feature(responseOpt.matchings[0].geometry)]);
+            // console.log('The distance is: ', responseOpt.matchings[0].distance);
+
+            // Update the 'route' source by getting the route source
+            // and setting the data equal to routeGeoJSON
+            map.getSource('route').setData(routeGeoJSON);
         }).catch((optError) => {
             console.log('Error with the opt call');
         })
-
-        //     if (bestPath.length == 0) {
-        //         console.log('In the if statement')
-        //         routeGeoJSON2 = noRoute;
-        //     } else {
-        //         console.log('In the else statement');
-        //     }
-        // }).catch((error2) => {
-        //     console.log('Error with the matrix request');
-        // })
     }).catch((matrixError) => {
         console.log('Error with the matrix call');
     })
@@ -255,7 +262,7 @@ function promising(distance, pathLength) {
  */
 var thing = true;
 function genPerms(graph, marked, distance, currentVert, 
-    start, pathLength, currentPath, bestPath) {
+    start, pathLength, currentPath, bestPath, maxLength) {
         pathLength += graph[currentVert][start];
 
         if ((pathLength >= distance - 160) && (pathLength <= distance + 160)) {
@@ -263,6 +270,7 @@ function genPerms(graph, marked, distance, currentVert,
             for (var i = 0; i < currentPath.length; ++i) {
                 bestPath[i] = currentPath[i];
             }
+            pathLength -= graph[currentVert][start];
             return;
         }
         pathLength -= graph[currentVert][start];
@@ -271,7 +279,7 @@ function genPerms(graph, marked, distance, currentVert,
             return;
         }
 
-        for (var i  = currentVert; i < 15; ++i) {
+        for (var i  = currentVert; i < maxLength; ++i) {
             if ((i == 0 && currentVert == 0) || marked[i] || graph[currentVert][i] == 0) {
                 continue;
             }
@@ -284,4 +292,39 @@ function genPerms(graph, marked, distance, currentVert,
             currentPath.pop();
             pathLength -= graph[currentVert][i];
         }
+}
+
+// Snap Coordinates to the nearest road
+async function snapCoordinates(coordinates) {
+    var newCoordinates = [];
+
+    // Swap lat and lng in coordinates
+    for (var i = 0; i < coordinates.length; ++i) {
+        var temp = coordinates[i][0];
+        coordinates[i][0] = coordinates[i][1];
+        coordinates[i][1] = temp;
+    }
+    
+    var sortedCoords = coordinates.slice(1, 20).sort()
+    sortedCoords.unshift(coordinates[0]);
+
+    try {
+        var response = await fetch('https://roads.googleapis.com/v1/snapToRoads?path=' + sortedCoords.join('|') 
+        + '&key=' + apiKey.googleKey)
+
+        var data = await response.json();
+
+        console.log('The data is: ', data);
+        var lat;
+        var lng;
+
+        for (var i = 0; i < data.snappedPoints.length; ++i) {
+            lat = data.snappedPoints[i].location.latitude;
+            lng = data.snappedPoints[i].location.longitude;
+            newCoordinates.push([lng, lat]);
+        }
+        return newCoordinates;
+    } catch {
+        console.log('Error with the snap to roads call')
+    }  
 }

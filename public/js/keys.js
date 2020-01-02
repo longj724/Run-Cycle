@@ -1,0 +1,1 @@
+var apiKey = { googleKey: 'AIzaSyBM15YPAs_MAsK_IHY5G1tEXZdSeyU7yJ0'}
