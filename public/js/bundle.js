@@ -98,53 +98,7 @@ module.exports = {
 },{}],2:[function(require,module,exports){
 const randomLocation = require('random-location');
 
-/**
-* Generates number of random geolocation points given a center and a radius.
-* @param  {Object} center A JS object with lat and lng attributes.
-* @param  {number} radius Radius in meters.
-* @param {number} count Number of points to generate.
-* @return {array} Array of arrays with lat and lng attributes.
-*/
-
-function generateRandomPoints(center, radius, count) { 
-    var points = [];
-
-    for (var i = 0; i < count; ++i) {
-        if (count == 1) {
-            return generateRandomPoint(center, radius);
-        }
-
-        points.push(generateRandomPoint(center, radius));
-    }
-    return points;
-}
-
-/**
-* Generates number of random geolocation points given a center and a radius.
-* @param  {Object} center A JS object with lat and lng attributes.
-* @param  {number} radius Radius in meters.
-* @return {array} The generated random points as an array with lat and lng.
-*/
-
-function generateRandomPoint(center, radius) {
-    var x0 = center.lat
-    var y0 = center.lng;
-
-    // Convert Radius from meter to degrees
-    var rd = radius / 1113000;
-
-    var u = Math.random();
-    var v = Math.random();
-
-    var w = rd * Math.sqrt(u);
-    var t = 2 * Math.PI * v;
-    var x = w * Math.cos(t);
-    var y = w * Math.sin(t);
-
-    var coordinates = [y + y0, x + x0];
-
-    return coordinates;
-}
+mapboxgl.accessToken = apiKey.mapBoxKey;
 
 // Creates map and geocoding
 var map = new mapboxgl.Map({
@@ -155,7 +109,7 @@ var map = new mapboxgl.Map({
 });
 
 var geocoder = new MapboxGeocoder({ // Initialize the geocoder
-    accessToken: apiKey.mapBoxKey, // Set the access token
+    accessToken: mapboxgl.accessToken, // Set the access token
     mapboxgl: mapboxgl, // Set the mapbox-gl instance
     marker: false,
     placeholder: 'Enter Starting Location'
