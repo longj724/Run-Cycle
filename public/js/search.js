@@ -230,57 +230,6 @@ async function makeRequest(coordinates) {
     var response = await fetch(assembleOptURL(coordinates));
     var data = await response.json();
     return data;
-
-        // var bestPath = [];
-        // var marked = []
-        // var currentPath = [];
-        // var cycleLength = 5000;
-
-        // for (var i = 0; i < coordinates.length; ++i) {
-        //     marked[i] = false;
-        // }
-
-        // // Pushing the index that corresponds to the coordinates of the starting point
-        // currentPath.push(0);
-
-        // genPerms(response.distances, marked, cycleLength, 0, 0, 0, currentPath, bestPath, coordinates.length);
-        // console.log(bestPath);
-
-        // // Putting the bestPath coordinates into an array
-        // var bestPathCoordinates = [];
-        // for (var i = 0; i < bestPath.length; ++i) {
-        //     bestPathCoordinates[i] = coordinates[bestPath[i]];
-        // }
-
-        // if (bestPathCoordinates.length == 0) {
-        //     console.log('No best path found');
-        //     return;
-        // }
-
-        // Make a call to the Optimization API
-        // fetch(assembleOptURL(bestPathCoordinates))
-        // .then((responseOpt) => {
-        //     return responseOpt.json();
-        // }).then((responseOpt) => {
-        //     console.log(responseOpt);
-        //     // With Optimization Call
-        //     var routeGeoJSON = turf.featureCollection([turf.feature(responseOpt.trips[0].geometry)]);
-        //     console.log(responseOpt.trips[0].distance);
-
-        //     // With Matching Call
-        //     // var routeGeoJSON = turf.featureCollection([turf.feature(responseOpt.matchings[0].geometry)]);
-        //     // console.log('The distance is: ', responseOpt.matchings[0].distance);
-
-        //     // Update the 'route' source by getting the route source
-        //     // and setting the data equal to routeGeoJSON
-        //     map.getSource('route').setData(routeGeoJSON);
-        // }).catch((optError) => {
-        //     console.log('Error with the opt call');
-        // })
-    // }).catch((matrixError) => {
-    //     console.log('Error with the matrix call');
-    //     return 0;
-    // })
 }
 
 /**

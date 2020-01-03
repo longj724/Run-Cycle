@@ -145,19 +145,20 @@ map.on('load', function() {
     geocoder.on('result', function(e) {
       map.getSource('single-point').setData(e.result.geometry);
 
-      // Object containg the latitude and longitude at the entered point
+      // Object containing the latitude and longitude at the entered address
       var latLong = {'latitude': e.result.center[1], 'longitude': e.result.center[0]};
 
       // An array representing the coordinates of the starting point: lng, lat
       var startingPoint = [e.result.center[1], e.result.center[0]];
+
+      // Variables to be used after making the API request
       var routeGeoJSON;
-      var returningRouteGeoJson;
       var potentialRoutePoints = [];
 
-      // Get a random point within a given circumference
+      // Get a random point within the given circumference
       const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, 1000);
 
-      // Add the points to the potential route points array
+      // Add the starting point to the potential route points array and calculate the ending point
       potentialRoutePoints.push(startingPoint);
       var pointToAdd = [randomCircumferencePoint.latitude, randomCircumferencePoint.longitude];
       potentialRoutePoints.push(pointToAdd);
@@ -175,21 +176,24 @@ map.on('load', function() {
           // Update the total route distance
           totalRouteDistance += data.routes[0].summary.lengthInMeters
 
-          // The route points as latitude longitude objects
+          // Get the coordinates that make up the route
           var originalRoutePoints = data.routes[0].legs[0].points;
           var newRoutePoints = []
 
-          // Convert the route points to a 2d array with [lng, lat] elements
+          // Convert the route coordinates to a 2d array with [lng, lat] elements
           for (var i = 0; i < originalRoutePoints.length; ++i) {
             newRoutePoints[i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
           }
 
+          // If a cycle can be made between the starting and ending points
           if (data.routes.length > 1) {
-            // Make the returning route request
+
+            // Make the request to get the returning route
             potentialRoutePoints.length = 0;
             potentialRoutePoints.push(pointToAdd);
             potentialRoutePoints.push(startingPoint);
             var returnRequest = makeNavRequest(potentialRoutePoints);
+
             returnRequest.then((returnData) => {
 
               // Update the total route distance
@@ -198,15 +202,16 @@ map.on('load', function() {
 
               originalRoutePoints.length = 0;
               originalRoutePoints = returnData.routes[1].legs[0].points;
-              console.log('Original Route points are: ', originalRoutePoints);
               
               var newRoutePointsLength = newRoutePoints.length;
+
+              // Convert the returning route coordinates to a 2d array with [lng, lat] elements
+              // Append the returning route coordinates to newRoutePoints array
               for (var i = 0; i < originalRoutePoints.length; ++i) {
                 newRoutePoints[newRoutePointsLength + i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
               }
 
-              console.log('Route Points is: ', newRoutePoints);
-
+              // Create the geometry to plot the route
               var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
     
               routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
@@ -216,6 +221,7 @@ map.on('load', function() {
               map.getSource('route').setData(routeGeoJSON);
             })
           } else {
+            // If a cycle cannot be made - the route will now be an out and back
             console.log('one route');
 
             // The route points as latitude longitude objects
@@ -312,36 +318,6 @@ async function makeNavRequest(coordinates) {
 
 // Snap Coordinates to the nearest road
 async function snapCoordinates(coordinates) {
-    var newCoordinates = [];
-
-    // Swap lat and lng in coordinates
-    for (var i = 0; i < coordinates.length; ++i) {
-        var temp = coordinates[i][0];
-        coordinates[i][0] = coordinates[i][1];
-        coordinates[i][1] = temp;
-    }
     
-    var sortedCoords = coordinates.slice(1, 20).sort()
-    sortedCoords.unshift(coordinates[0]);
-
-    try {
-        var response = await fetch('https://roads.googleapis.com/v1/snapToRoads?path=' + sortedCoords.join('|') 
-        + '&key=' + apiKey.googleKey)
-
-        var data = await response.json();
-
-        console.log('The data is: ', data);
-        var lat;
-        var lng;
-
-        for (var i = 0; i < data.snappedPoints.length; ++i) {
-            lat = data.snappedPoints[i].location.latitude;
-            lng = data.snappedPoints[i].location.longitude;
-            newCoordinates.push([lng, lat]);
-        }
-        return newCoordinates;
-    } catch {
-        console.log('Error with the snap to roads call')
-    }  
 }
 },{"random-location":1}]},{},[2]);
