@@ -1,3 +1,5 @@
+const randomLocation = require('random-location');
+
 /**
 * Generates number of random geolocation points given a center and a radius.
 * @param  {Object} center A JS object with lat and lng attributes.
@@ -10,6 +12,10 @@ function generateRandomPoints(center, radius, count) {
     var points = [];
 
     for (var i = 0; i < count; ++i) {
+        if (count == 1) {
+            return generateRandomPoint(center, radius);
+        }
+
         points.push(generateRandomPoint(center, radius));
     }
     return points;
@@ -43,7 +49,6 @@ function generateRandomPoint(center, radius) {
 }
 
 // Creates map and geocoding
-mapboxgl.accessToken = 'pk.eyJ1IjoibG9uZ2oyNCIsImEiOiJjanlmM29uMnQwMHpuM25wYTRrNXVlNGg0In0.e22c1LT7Rl9FHcpLu7nGvQ';
 var potentialRoutePoints = [];
 
 var map = new mapboxgl.Map({
@@ -54,7 +59,7 @@ var map = new mapboxgl.Map({
 });
 
 var geocoder = new MapboxGeocoder({ // Initialize the geocoder
-    accessToken: mapboxgl.accessToken, // Set the access token
+    accessToken: apiKey.mapBoxKey, // Set the access token
     mapboxgl: mapboxgl, // Set the mapbox-gl instance
     marker: false,
     placeholder: 'Enter Starting Location'
@@ -89,12 +94,60 @@ map.on('load', function() {
     //  Add a marker at the result's coordinates
     geocoder.on('result', function(e) {
       map.getSource('single-point').setData(e.result.geometry);
-      var latLong = {'lng': e.result.center[0], 'lat': e.result.center[1]};
+    //   var latLong = {'lng': e.result.center[0], 'lat': e.result.center[1]};
       var startingPoint = [e.result.center[0], e.result.center[1]];
-
-      potentialRoutePoints = generateRandomPoints(latLong, 5000, 19);
       potentialRoutePoints.unshift(startingPoint);
-      makeRequest(potentialRoutePoints);
+
+      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(startingPoint, 5000);
+      console.log('The random point is: ', randomCircumferencePoint);
+    //   var lngLat = {'lng': potentialRoutePoints[potentialRoutePoints.length - 1][0],
+    //             'lat': potentialRoutePoints[potentialRoutePoints.length - 1][1]};
+
+    //   var randomPoint = generateRandomPoints(lngLat, 500, 1);
+    //   potentialRoutePoints.push(randomPoint);
+
+    //   var distance = 0;
+    //   var response;
+    //   var foundRoute = false;
+    //   var pointRadius = 2500;
+
+    //   while (potentialRoutePoints.length < 12) {
+    //       var lngLat = {'lng': potentialRoutePoints[potentialRoutePoints.length - 1][0],
+    //             'lat': potentialRoutePoints[potentialRoutePoints.length - 1][1]}
+
+    //       var randomPoint = generateRandomPoints(lngLat, pointRadius, 1);
+    //       potentialRoutePoints.push(randomPoint);
+    //       response = makeRequest(potentialRoutePoints);
+    //       response.then((data) => {
+    //         console.log('The data is: ', data);
+
+    //         if (data.trips[0].distance >= 4500 && data.trips[0].distance <= 5500) {
+    //             // With Optimization Call
+    //             var routeGeoJSON = turf.featureCollection([turf.feature(data.trips[0].geometry)]);
+    //             console.log(data.trips[0].distance);
+    //             // Update the 'route' source by getting the route source
+    //             // and setting the data equal to routeGeoJSON
+    //             map.getSource('route').setData(routeGeoJSON);
+    //             foundRoute = true;
+    //             distance = data.trips[0].distance;
+    //             console.log('Found Route is: ', foundRoute);
+    //         }
+    //         if (data.trips[0].distance <= 5000) {
+    //             console.log('Points Radius is: ', pointRadius);
+    //             pointRadius += 1000;
+    //         }
+    //       });
+
+    //       if (distance >= 4500 && distance <= 5500) {
+    //           console.log('Should stop generating route now');
+    //           break; 
+    //     }
+    //   }
+
+    //   potentialRoutePoints.length = 0;
+    //   potentialRoutePoints = generateRandomPoints(latLong, 5000, 11);
+    //   potentialRoutePoints.unshift(startingPoint);
+    //   makeRequest(potentialRoutePoints);
     //   potentialRoutePoints = snapCoordinates(potentialRoutePoints);
     //   potentialRoutePoints.then((response) => {
     //     makeRequest(response);
@@ -162,78 +215,72 @@ map.on('load', function() {
 var nothing = turf.featureCollection([]);
 
 function assembleMatrixURL(points) {
-    return 'https://api.mapbox.com/directions-matrix/v1/mapbox/walking/' + points.join(';') + 
-    '?annotations=distance&access_token=' + mapboxgl.accessToken;
+    return 'https://api.mapbox.com/directions-matrix/v1/mapbox/driving/' + points.join(';') + 
+    '?annotations=distance&access_token=' + apiKey.mapBoxKey;
 }
 
 function assembleOptURL(points) {
-    // var radiuses = ''
-    // for (var i = 0; i < points.length; ++i) {
-    //     radiuses += '50;'
-    // }
-
-    // radiuses = radiuses.slice(0, -1);
-
-    // return 'https://api.mapbox.com/matching/v5/mapbox/walking/' + points.join(';') +
-    // '?geometries=geojson&overview=full&radiuses=' + radiuses + '&access_token=' + mapboxgl.accessToken;
-
-    return 'https://api.mapbox.com/optimized-trips/v1/mapbox/walking/' + points.join(';') +
-    '?geometries=geojson&overview=full&roundtrip=true&access_token='+ mapboxgl.accessToken;
+    return 'https://api.mapbox.com/optimized-trips/v1/mapbox/driving/' + points.join(';') +
+    '?geometries=geojson&overview=full&roundtrip=true&access_token='+ apiKey.mapBoxKey;
 }
 
-function makeRequest(coordinates) {
+async function makeRequest(coordinates) {
     var noRoute = turf.featureCollection([]);
-    console.log(coordinates);
 
-    fetch(assembleMatrixURL(coordinates))
-    .then((response) => {
-        return response.json();
-    }).then((response) => {
-        console.log(response);
-        var bestPath = [];
-        var marked = []
-        var currentPath = [];
-        var cycleLength = 5000;
+    var response = await fetch(assembleOptURL(coordinates));
+    var data = await response.json();
+    return data;
 
-        for (var i = 0; i < coordinates.length; ++i) {
-            marked[i] = false;
-        }
+        // var bestPath = [];
+        // var marked = []
+        // var currentPath = [];
+        // var cycleLength = 5000;
 
-        // Pushing the index that corresponds to the coordinates of the starting point
-        currentPath.push(0);
+        // for (var i = 0; i < coordinates.length; ++i) {
+        //     marked[i] = false;
+        // }
 
-        genPerms(response.distances, marked, cycleLength, 0, 0, 0, currentPath, bestPath, coordinates.length);
-        console.log(bestPath);
+        // // Pushing the index that corresponds to the coordinates of the starting point
+        // currentPath.push(0);
 
-        // Putting the bestPath coordinates into an array
-        var bestPathCoordinates = [];
-        for (var i = 0; i < bestPath.length; ++i) {
-            bestPathCoordinates[i] = coordinates[bestPath[i]];
-        }
+        // genPerms(response.distances, marked, cycleLength, 0, 0, 0, currentPath, bestPath, coordinates.length);
+        // console.log(bestPath);
+
+        // // Putting the bestPath coordinates into an array
+        // var bestPathCoordinates = [];
+        // for (var i = 0; i < bestPath.length; ++i) {
+        //     bestPathCoordinates[i] = coordinates[bestPath[i]];
+        // }
+
+        // if (bestPathCoordinates.length == 0) {
+        //     console.log('No best path found');
+        //     return;
+        // }
 
         // Make a call to the Optimization API
-        fetch(assembleOptURL(bestPathCoordinates))
-        .then((responseOpt) => {
-            return responseOpt.json();
-        }).then((responseOpt) => {
-            console.log(responseOpt);
-            // With Optimization Call
-            var routeGeoJSON = turf.featureCollection([turf.feature(responseOpt.trips[0].geometry)]);
-            console.log(responseOpt.trips[0].distance);
+        // fetch(assembleOptURL(bestPathCoordinates))
+        // .then((responseOpt) => {
+        //     return responseOpt.json();
+        // }).then((responseOpt) => {
+        //     console.log(responseOpt);
+        //     // With Optimization Call
+        //     var routeGeoJSON = turf.featureCollection([turf.feature(responseOpt.trips[0].geometry)]);
+        //     console.log(responseOpt.trips[0].distance);
 
-            // With Matching Call
-            // var routeGeoJSON = turf.featureCollection([turf.feature(responseOpt.matchings[0].geometry)]);
-            // console.log('The distance is: ', responseOpt.matchings[0].distance);
+        //     // With Matching Call
+        //     // var routeGeoJSON = turf.featureCollection([turf.feature(responseOpt.matchings[0].geometry)]);
+        //     // console.log('The distance is: ', responseOpt.matchings[0].distance);
 
-            // Update the 'route' source by getting the route source
-            // and setting the data equal to routeGeoJSON
-            map.getSource('route').setData(routeGeoJSON);
-        }).catch((optError) => {
-            console.log('Error with the opt call');
-        })
-    }).catch((matrixError) => {
-        console.log('Error with the matrix call');
-    })
+        //     // Update the 'route' source by getting the route source
+        //     // and setting the data equal to routeGeoJSON
+        //     map.getSource('route').setData(routeGeoJSON);
+        // }).catch((optError) => {
+        //     console.log('Error with the opt call');
+        // })
+    // }).catch((matrixError) => {
+    //     console.log('Error with the matrix call');
+    //     return 0;
+    // })
 }
 
 /**
