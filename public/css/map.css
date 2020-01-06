@@ -3,11 +3,91 @@ body {
     padding: 0;
     width: 100%;
     height: 100%;
+    overflow-x: hidden;
 }
 
 #map {
     position: absolute;
-    top: 0;
+    top: 12vh;
     bottom: 0;
+    width: 70vw;
+    margin-left: 0;
+}
+
+#nav {
+    margin-top: 0px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: flex;
+    background-color: #283350;
+    height: 12vh;
     width: 100%;
+}
+
+#title {
+    display: inline;
+    color: #FFB500;
+    font-family: 'Cairo', sans-serif;
+    align-content: center;
+    
+}
+
+#controller {
+    background-color: #ffffff;
+    height: 88vh;
+    float: right;
+    display: grid;
+    grid-template-rows: 7vh 15vh 22vh 22vh 22vh;
+}
+
+#geocoder {
+    grid-row-start: 1;
+    grid-row-end: 1;
+    justify-self: center;
+    align-self: start;
+    width: 28vw;
+    height: 7vh;
+    border: none;
+    border-bottom: 2px solid #FFB500;
+}
+
+#potentialLocations {
+    grid-row-start: 2;
+    grid-row-end: 2;
+    list-style-type: none;
+    width: 28vw;
+    justify-self: center;
+    align-self: start;
+    display: grid;
+}
+
+#potentialLocations li a {
+    border: 1px solid #ddd;
+    background-color: #f6f6f6;
+    height: 3vh;
+    width: 28vw;
+    justify-self: center;
+    align-self: start;
+    /* padding: 12px;  */
+    text-decoration: none; 
+    /* font-size: 12px;  */
+    color: black; 
+    font-family: 'Source Sans Pro', sans-serif;
+}
+
+#potentialLocations li a:hover:not(.header) {
+    background-color: #eee; /* Add a hover effect to all links, except for headers */
+    cursor: pointer;
+  }
+
+#routeDistance {
+    grid-row-start: 3;
+    grid-row-end: 3;
+    justify-self: center;
+    align-self: center;
+    width: 28vw;
+    height: 5vh;
+    border: none;
+    border-bottom: 2px solid #FFB500;
 }

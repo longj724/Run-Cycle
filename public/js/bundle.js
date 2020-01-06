@@ -103,7 +103,7 @@ mapboxgl.accessToken = apiKey.mapBoxKey;
 // Creates map and geocoding
 var map = new mapboxgl.Map({
     container: 'map', // Container ID
-    style: 'mapbox://styles/mapbox/streets-v11', // Map style to use
+    style: 'mapbox://styles/longj24/ck4z3ai5j084a1cnvlg84jzde', // Map style to use
     center: [-122.25948, 37.87221], // Starting position [lng, lat]
     zoom: 12, // Starting zoom level
 });
@@ -156,7 +156,7 @@ map.on('load', function() {
       var potentialRoutePoints = [];
 
       // Get a random point within the given circumference
-      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, 1000);
+      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, 2414);
 
       // Add the starting point to the potential route points array and calculate the ending point
       potentialRoutePoints.push(startingPoint);
@@ -222,7 +222,7 @@ map.on('load', function() {
             })
           } else {
             // If a cycle cannot be made - the route will now be an out and back
-            console.log('one route');
+            console.log('one route, the distance is: ', data.routes[0].summary.lengthInMeters);
 
             // The route points as latitude longitude objects
             var originalRoutePoints = data.routes[0].legs[0].points;
@@ -259,7 +259,7 @@ map.on('load', function() {
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#3887be',
+          'line-color': '#F93800',
           'line-width': [
             "interpolate",
             ["linear"],
