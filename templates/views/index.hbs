@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset='utf-8' />
-  <title>Local search app</title>
+  <title>Run Cycle</title>
   <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
 
   <script src='https://api.mapbox.com/mapbox-gl-js/v1.6.1/mapbox-gl.js'></script>
@@ -25,15 +25,17 @@
     </div>
 
     <div id="controller">
-        <input id="geocoder" placeholder="Enter Starting Location" onkeyup="filterLocationSearch()" required>
+        <input id="geocoder" placeholder="Enter Starting Location" required>
 
         <ul id="potentialLocations"></ul>
 
         <input id="routeDistance" placeholder="Route Distance" required>
+
+        <button id="makeRoute">Find Route</button>
     </div>
 
 </body>
 <script src="/js/apiKeys.js"></script>
 <script src="/js/forms.js"></script>
-<script src="/js/bundle.js"></script>
+<script src="/js/searchBundle.js"></script>
 </html>

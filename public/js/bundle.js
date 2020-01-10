@@ -98,6 +98,7 @@ module.exports = {
 },{}],2:[function(require,module,exports){
 const randomLocation = require('random-location');
 
+
 mapboxgl.accessToken = apiKey.mapBoxKey;
 
 // Creates map and geocoding
@@ -108,6 +109,7 @@ var map = new mapboxgl.Map({
     zoom: 12, // Starting zoom level
 });
 
+
 var geocoder = new MapboxGeocoder({ // Initialize the geocoder
     accessToken: mapboxgl.accessToken, // Set the access token
     mapboxgl: mapboxgl, // Set the mapbox-gl instance
@@ -116,40 +118,77 @@ var geocoder = new MapboxGeocoder({ // Initialize the geocoder
 });
   
 // Add the geocoder to the map
-map.addControl(geocoder);
+// map.addControl(geocoder);
 
-// After the map style has loaded on the page,
-// add a source layer and default styling for a single point
-map.on('load', function() {
-    map.addSource('single-point', {
-      type: 'geojson',
-      data: {
-        type: 'FeatureCollection',
-        features: []
-      }
+function assembleDirectionsURL(points) {
+    // Make the TomTom API Request
+    return 'https://api.tomtom.com/routing/1/calculateRoute/' + points.join(':')  + '/json'
+     + '?key=' + apiKey.tomtomKey + '&travelMode=pedestrian&maxAlternatives=5';
+}
+
+async function makeNavRequest(coordinates) {
+    var response = await fetch(assembleDirectionsURL(coordinates));
+    var data = await response.json();
+    return data;
+}
+
+function createRoute() {
+  // When there is no route
+  var nothing = turf.featureCollection([]);
+
+  var mapA = new mapboxgl.Map({
+    container: 'map', // Container ID
+    style: 'mapbox://styles/longj24/ck4z3ai5j084a1cnvlg84jzde', // Map style to use
+    center: [-122.25948, 37.87221], // Starting position [lng, lat]
+    zoom: 12, // Starting zoom level
+  });
+
+  var geocodeResponse = getRouteInfo();
+  geocodeResponse.then((geocodeData) => {
+
+    var mapA = new mapboxgl.Map({
+      container: 'map', // Container ID
+      style: 'mapbox://styles/longj24/ck4z3ai5j084a1cnvlg84jzde', // Map style to use
+      center: geocodeData.features[0].center, // Starting position [lng, lat]
+      zoom: 12, // Starting zoom level
     });
-  
-    map.addLayer({
-      id: 'point',
-      source: 'single-point',
-      type: 'circle',
-      paint: {
-        'circle-radius': 10,
-        'circle-color': '#448ee4'
-      }
-    });
-  
-    // Listen for the `result` event from the Geocoder
-    // `result` event is triggered when a user makes a selection
-    //  Add a marker at the result's coordinates
-    geocoder.on('result', function(e) {
-      map.getSource('single-point').setData(e.result.geometry);
+
+    mapA.on('load', function() {
+      mapA.addSource('single-point', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: []
+        }
+      })
+
+      mapA.addLayer({
+        id: 'point',
+        source: 'single-point',
+        type: 'circle',
+        paint: {
+          'circle-radius': 10,
+          'circle-color': '#448ee4'
+        }
+      })
+
+      mapA.getSource('single-point').setData({
+        "type": "FeatureCollection",
+        "features": [{
+          "type": "Feature",
+          "properties": {},
+          "geometry": {
+            "type": "Point",
+            "coordinates": geocodeData.features[0].center
+          }
+        }]
+      });
 
       // Object containing the latitude and longitude at the entered address
-      var latLong = {'latitude': e.result.center[1], 'longitude': e.result.center[0]};
+      var latLong = {'latitude': geocodeData.features[0].center[1], 'longitude': geocodeData.features[0].center[0]};
 
       // An array representing the coordinates of the starting point: lng, lat
-      var startingPoint = [e.result.center[1], e.result.center[0]];
+      var startingPoint = [geocodeData.features[0].center[1], geocodeData.features[0].center[0]];
 
       // Variables to be used after making the API request
       var routeGeoJSON;
@@ -213,12 +252,12 @@ map.on('load', function() {
 
               // Create the geometry to plot the route
               var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
-    
+
               routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
-    
+
               // Update the `route` source by getting the route source
               // and setting the data equal to routeGeoJSON
-              map.getSource('route').setData(routeGeoJSON);
+              mapA.getSource('route').setData(routeGeoJSON);
             })
           } else {
             // If a cycle cannot be made - the route will now be an out and back
@@ -234,90 +273,134 @@ map.on('load', function() {
             }
 
             var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
-    
+
             routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
 
-            map.getSource('route').setData(routeGeoJSON);
+            mapA.getSource('route').setData(routeGeoJSON);
           }
         }
       })
       // Clearing potentialRoutePoints so new routes can be created
       potentialRoutePoints.length = 0;
-    });
 
-    map.addSource('route', {
+      mapA.addSource('route', {
         type: 'geojson',
         data: nothing
-    })
-    
-    map.addLayer({
-        id: 'routeline-active',
-        type: 'line',
-        source: 'route',
-        layout: {
-          'line-join': 'round',
-          'line-cap': 'round'
+      })
+
+      mapA.addLayer({
+          id: 'routeline-active',
+          type: 'line',
+          source: 'route',
+          layout: {
+            'line-join': 'round',
+            'line-cap': 'round'
+          },
+          paint: {
+            'line-color': '#F93800',
+            'line-width': [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              12, 3,
+              22, 12
+            ]
+          }
+        }, 'waterway-label');
+
+      mapA.addLayer({
+      id: 'routearrows',
+      type: 'symbol',
+      source: 'route',
+      layout: {
+          'symbol-placement': 'line',
+          'text-field': '▶',
+          'text-size': [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          12, 24,
+          22, 60
+          ],
+          'symbol-spacing': [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          12, 30,
+          22, 160
+          ],
+          'text-keep-upright': false
         },
         paint: {
-          'line-color': '#F93800',
-          'line-width': [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            12, 3,
-            22, 12
-          ]
+            'text-color': '#3887be',
+            'text-halo-color': 'hsl(55, 11%, 96%)',
+            'text-halo-width': 3
         }
-      }, 'waterway-label');
-    
-    map.addLayer({
-    id: 'routearrows',
-    type: 'symbol',
-    source: 'route',
-    layout: {
-        'symbol-placement': 'line',
-        'text-field': '▶',
-        'text-size': [
-        "interpolate",
-        ["linear"],
-        ["zoom"],
-        12, 24,
-        22, 60
-        ],
-        'symbol-spacing': [
-        "interpolate",
-        ["linear"],
-        ["zoom"],
-        12, 30,
-        22, 160
-        ],
-        'text-keep-upright': false
-    },
-    paint: {
-        'text-color': '#3887be',
-        'text-halo-color': 'hsl(55, 11%, 96%)',
-        'text-halo-width': 3
-    }
-    }, 'waterway-label');
-});
-
-// Generating the route - 5 miles for now
-var nothing = turf.featureCollection([]);
-
-function assembleDirectionsURL(points) {
-    // Make the TomTom API Request
-    return 'https://api.tomtom.com/routing/1/calculateRoute/' + points.join(':')  + '/json'
-     + '?key=' + apiKey.tomtomKey + '&travelMode=pedestrian&maxAlternatives=5';
+      }, 'waterway-label');    
+    })
+  })
 }
 
-async function makeNavRequest(coordinates) {
-    var response = await fetch(assembleDirectionsURL(coordinates));
-    var data = await response.json();
-    return data;
-}
-
-// Snap Coordinates to the nearest road
 async function snapCoordinates(coordinates) {
     
 }
 },{"random-location":1}]},{},[2]);
+
+function filterLocationSearch() {
+  var geocoder = document.getElementById('geocoder');
+  var location = geocoder.value + '.json'
+  var locationList = document.getElementById('potentialLocations');
+  clearSearchFilter();
+  var response = assembleGeocodeURL(location);
+  response.then((data) => {
+      for (var i = 0; i < 5; ++i) {
+          var placeName = data.features[i].place_name;
+          var placeElement = document.createElement('li');
+          var placeElementLink = document.createElement('a');
+
+          placeElementLink.innerHTML = placeName;
+
+          placeName = JSON.stringify(placeName);
+          placeElementLink.setAttribute('onclick', `fillInSearchBox(${placeName})`);
+          placeElement.setAttribute('style', `grid-row-start: ${i + 1}; grid-row-end: ${i + 1};
+          justify-self: stretch;`);
+          placeElement.appendChild(placeElementLink);
+          locationList.appendChild(placeElement);
+      }
+  })
+}
+
+async function assembleGeocodeURL(location) {
+  var response = await fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + 
+  location + '?access_token=' + apiKey.mapBoxKey);
+  var data = await response.json();
+  return data;
+}
+
+function clearSearchFilter() {
+  let filterList = document.getElementById('potentialLocations');
+  let filterListNodes = document.getElementById('potentialLocations').childNodes;
+  while (filterListNodes.length != 0) {
+      filterList.removeChild(filterListNodes[0]);
+  }
+}
+
+function fillInSearchBox(location) {
+  var searchBox = document.getElementById('geocoder');
+  searchBox.value = location;
+  clearSearchFilter();
+}
+
+async function getRouteInfo() {
+  var geocoder = document.getElementById('geocoder');
+  var location = geocoder.value + '.json';
+  var distance = document.getElementById('routeDistance');
+  var response = await assembleGeocodeURL(location);
+  return response;
+}
+
+
+var createRouteBtn = document.getElementById('makeRoute');
+createRouteBtn.addEventListener('click', createRoute);
+
+document.getElementById('geocoder').addEventListener('keyup', filterLocationSearch);
