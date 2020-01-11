@@ -138,7 +138,8 @@ function filterLocationSearch() {
   clearSearchFilter2();
   var response = assembleGeocodeURL(location);
   response.then((data) => {
-      for (var i = 0; i < 5; ++i) {
+      if (data && !geocoder.hasChildNodes()) {
+        for (var i = 0; i < 5; ++i) {
           var placeName = data.features[i].place_name;
           var placeElement = document.createElement('li');
           var placeElementLink = document.createElement('a');
@@ -151,6 +152,7 @@ function filterLocationSearch() {
           justify-self: stretch;`);
           placeElement.appendChild(placeElementLink);
           locationList.appendChild(placeElement);
+        }
       }
   })
 }
@@ -177,8 +179,6 @@ async function getRouteInfo() {
   var response = await assembleGeocodeURL(location);
   return response;
 }
-
-var thing = "something";
 
 function createRoute() {
   // When there is no route
@@ -235,8 +235,11 @@ function createRoute() {
       var routeGeoJSON;
       var potentialRoutePoints = [];
 
+      var requestedRouteLength = document.getElementById('routeDistance');
+      console.log('Request route length is: ', requestedRouteLength.value);
+
       // Get a random point within the given circumference
-      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, 2414);
+      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, requestedRouteLength.value * .45);
 
       // Add the starting point to the potential route points array and calculate the ending point
       potentialRoutePoints.push(startingPoint);
@@ -373,8 +376,8 @@ function createRoute() {
           'text-keep-upright': false
         },
         paint: {
-            'text-color': '#3887be',
-            'text-halo-color': 'hsl(55, 11%, 96%)',
+            'text-color': '#FFB500',
+            'text-halo-color': '#283350',
             'text-halo-width': 3
         }
       }, 'waterway-label');    
