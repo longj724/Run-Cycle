@@ -38,7 +38,7 @@ body {
     height: 88vh;
     margin-left: 70vw;
     display: grid;
-    grid-template-rows: 10vh 28vh 12vh 11vh 27vh;
+    grid-template-rows: 10vh 18vh 7vh 8vh 11vh 7vh 27vh;
 }
 
 #geocoder {
@@ -114,9 +114,57 @@ body {
     font-family: 'Source Sans Pro', sans-serif;
 }
 
+.units {
+    display: flex;
+    overflow: hidden;
+    justify-content: center;
+}
+
+.units input {
+    position: absolute !important;
+    clip: rect(0, 0, 0, 0);
+    height: 1px;
+    width: 1px;
+    border: 0;
+    overflow: hidden;
+}
+
+.units label {
+    background-color: #e2e2e2;
+    color: #283350;
+    font-size: 1em;
+    /* line-height: 1; */
+    text-align: center;
+    padding: 8px 16px;
+    margin-right: -1px;
+    border: 1px solid #e2e2e2;
+    /* box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px rgba(255, 255, 255, 0.1); */
+    transition: all 0.1s ease-in-out;
+    margin-top: 2vh;
+    font-family: 'Source Sans Pro', sans-serif;
+    font-weight: bold;
+}
+
+.units label:hover {
+    cursor: pointer;
+}
+
+.units input:checked + label {
+    background-color: #FFB500;
+    border-color: #FFB500;
+    box-shadow: none;
+}
+
+.units label:first-of-type {
+    border-radius: 10px 0 0 10px;
+}
+
+.units label:last-of-type {
+    border-radius: 0 10px 10px 0;
+}
+
 #makeRoute {
-    grid-row-start: 4;
-    grid-row-end: 4;
+    grid-row-start: 5;
     margin-left: 3vw;
     align-self: center;
     height: 7vh;
@@ -138,7 +186,15 @@ body {
     border-bottom: 2px solid #283350;
 }
 
+#routeInfo {
+    grid-row-start: 6;
+    font-family: 'Source Sans Pro', sans-serif;
+    align-self: center;
+    justify-self: center;
+}
+
 #info {
+    grid-row-start: 7;
     display: block;
     height: 21vh;
     margin-left: 2vw;

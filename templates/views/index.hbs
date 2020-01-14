@@ -25,13 +25,22 @@
     </div>
 
     <div id="controller">
-        <input id="geocoder" placeholder="Enter Starting Location" required>
+        <input id="geocoder" placeholder="Enter Starting Location">
 
         <ul id="potentialLocations"></ul>
 
-        <input id="routeDistance" placeholder="Route Distance (in meters)">
+        <input id="routeDistance" placeholder="Route Distance">
+
+        <div class="units">
+            <input type="radio" id="radio-one" name="unit-switch" value="Miles" checked/>
+            <label for="radio-one">Miles</label>
+            <input type="radio" id="radio-two" name="unit-switch" value="Km" />
+            <label for="radio-two">Km</label>
+        </div>
 
         <button id="makeRoute">Find Route</button>
+
+        <h3 id="routeInfo">Distance: </h3>
 
         <div id="info">
             <h3>How Run Cycle Works</h3>
