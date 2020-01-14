@@ -122,7 +122,7 @@ var geocoder = new MapboxGeocoder({ // Initialize the geocoder
 function assembleDirectionsURL(points) {
     // Make the TomTom API Request
     return 'https://api.tomtom.com/routing/1/calculateRoute/' + points.join(':')  + '/json'
-     + '?key=' + apiKey.tomtomKey + '&travelMode=pedestrian&maxAlternatives=5';
+     + '?key=' + apiKey.tomtomKey + '&travelMode=pedestrian&maxAlternatives=5&windingness=low&routeType=thrilling';
 }
 
 async function makeNavRequest(coordinates) {
@@ -138,7 +138,7 @@ function filterLocationSearch() {
   clearSearchFilter2();
   var response = assembleGeocodeURL(location);
   response.then((data) => {
-      if (data && !geocoder.hasChildNodes()) {
+      if (data && !locationList.hasChildNodes()) {
         for (var i = 0; i < 5; ++i) {
           var placeName = data.features[i].place_name;
           var placeElement = document.createElement('li');
@@ -148,8 +148,6 @@ function filterLocationSearch() {
 
           placeName = JSON.stringify(placeName);
           placeElementLink.setAttribute('onclick', `fillInSearchBox(${placeName})`);
-          placeElement.setAttribute('style', `grid-row-start: ${i + 1}; grid-row-end: ${i + 1};
-          justify-self: stretch;`);
           placeElement.appendChild(placeElementLink);
           locationList.appendChild(placeElement);
         }
@@ -235,11 +233,29 @@ function createRoute() {
       var routeGeoJSON;
       var potentialRoutePoints = [];
 
-      var requestedRouteLength = document.getElementById('routeDistance');
-      console.log('Request route length is: ', requestedRouteLength.value);
+      // Get the requested route length
+      var requestedRouteLength = document.getElementById('routeDistance').value;
+
+      // Get the unit that the user wants to calculate the route in
+      var distanceUnit;
+      var radios = document.getElementsByName('unit-switch');
+      for (var i = 0; i < radios.length; ++i) {
+        if (radios[i].checked) {
+          distanceUnit = radios[i].value;
+          break;
+        }
+      }
+
+      // Convert the entered route length to meters
+      var distanceInMeters = 0;
+      if (distanceUnit.localeCompare("Miles") == 0) {
+        distanceInMeters = requestedRouteLength * 1609.34;
+      } else {
+        distanceInMeters = requestedRouteLength * 1000;
+      }
 
       // Get a random point within the given circumference
-      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, requestedRouteLength.value * .45);
+      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, distanceInMeters * .45);
 
       // Add the starting point to the potential route points array and calculate the ending point
       potentialRoutePoints.push(startingPoint);
@@ -281,7 +297,18 @@ function createRoute() {
 
               // Update the total route distance
               totalRouteDistance += returnData.routes[0].summary.lengthInMeters
-              console.log('The total route distance is: ', totalRouteDistance);
+
+              if (distanceUnit.localeCompare("Miles") == 0) {
+                totalRouteDistance = totalRouteDistance * 0.000621371;
+              } else {
+                totalRouteDistance = totalRouteDistance * 0.001;
+              }
+
+              // Display distance to the user
+              var displayDistance = document.getElementById('routeInfo');
+              displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
+
+              console.log('The total route distance is: ', totalRouteDistance, distanceUnit);
 
               originalRoutePoints.length = 0;
               originalRoutePoints = returnData.routes[1].legs[0].points;
@@ -305,7 +332,16 @@ function createRoute() {
             })
           } else {
             // If a cycle cannot be made - the route will now be an out and back
-            console.log('one route, the distance is: ', data.routes[0].summary.lengthInMeters);
+            if (distanceUnit.localeCompare("Miles") == 0) {
+              totalRouteDistance = totalRouteDistance * 0.000621371;
+            } else {
+              totalRouteDistance = totalRouteDistance * 0.001;
+            }
+            console.log('one route, the distance is: ', totalRouteDistance * 2, distanceUnit);
+
+            // Display distance to the user
+            var displayDistance = document.getElementById('routeInfo');
+            displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
 
             // The route points as latitude longitude objects
             var originalRoutePoints = data.routes[0].legs[0].points;
@@ -378,7 +414,7 @@ function createRoute() {
         paint: {
             'text-color': '#FFB500',
             'text-halo-color': '#283350',
-            'text-halo-width': 3
+            'text-halo-width': 2
         }
       }, 'waterway-label');    
     })
@@ -403,5 +439,14 @@ function clearSearchFilter() {
   let filterListNodes = document.getElementById('potentialLocations').childNodes;
   while (filterListNodes.length != 0) {
       filterList.removeChild(filterListNodes[0]);
+  }
+}
+
+var locationList = document.getElementById('potentialLocations');
+window.onclick = function(event) {
+  if (event.target == locationList) {
+    console.log('This kind of works');
+    locationList.style.display == 'none';
+    clearSearchFilter();
   }
 }
