@@ -255,7 +255,7 @@ function createRoute() {
       }
 
       // Get a random point within the given circumference
-      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, distanceInMeters * .45);
+      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, distanceInMeters * .40);
 
       // Add the starting point to the potential route points array and calculate the ending point
       potentialRoutePoints.push(startingPoint);
@@ -307,8 +307,6 @@ function createRoute() {
               // Display distance to the user
               var displayDistance = document.getElementById('routeInfo');
               displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
-
-              console.log('The total route distance is: ', totalRouteDistance, distanceUnit);
 
               originalRoutePoints.length = 0;
               originalRoutePoints = returnData.routes[1].legs[0].points;
@@ -443,10 +441,11 @@ function clearSearchFilter() {
 }
 
 var locationList = document.getElementById('potentialLocations');
-window.onclick = function(event) {
-  if (event.target == locationList) {
-    console.log('This kind of works');
-    locationList.style.display == 'none';
-    clearSearchFilter();
-  }
+window.onclick = function() {
+    var locationList = document.getElementById('potentialLocations');
+    var child = locationList.lastElementChild;
+    while (child) {
+      locationList.removeChild(child);
+      child = locationList.lastElementChild;
+    }
 }
