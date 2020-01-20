@@ -255,7 +255,7 @@ function createRoute() {
       }
 
       // Get a random point within the given circumference
-      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, distanceInMeters * .40);
+      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, distanceInMeters * .35);
 
       // Add the starting point to the potential route points array and calculate the ending point
       potentialRoutePoints.push(startingPoint);
@@ -318,6 +318,7 @@ function createRoute() {
               for (var i = 0; i < originalRoutePoints.length; ++i) {
                 newRoutePoints[newRoutePointsLength + i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
               }
+              console.log(newRoutePoints);
 
               // Create the geometry to plot the route
               var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
@@ -336,6 +337,7 @@ function createRoute() {
               totalRouteDistance = totalRouteDistance * 0.001;
             }
             console.log('one route, the distance is: ', totalRouteDistance * 2, distanceUnit);
+            totalRouteDistance = totalRouteDistance * 2;
 
             // Display distance to the user
             var displayDistance = document.getElementById('routeInfo');
