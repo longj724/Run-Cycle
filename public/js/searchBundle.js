@@ -101,23 +101,30 @@ const randomLocation = require('random-location');
 mapboxgl.accessToken = apiKey.mapBoxKey;
 
 // Creates map and geocoding
-var map = new mapboxgl.Map({
+var mapA = new mapboxgl.Map({
     container: 'map', // Container ID
     style: 'mapbox://styles/longj24/ck4z3ai5j084a1cnvlg84jzde', // Map style to use
     center: [-122.25948, 37.87221], // Starting position [lng, lat]
     zoom: 12, // Starting zoom level
 });
 
-
-var geocoder = new MapboxGeocoder({ // Initialize the geocoder
-    accessToken: mapboxgl.accessToken, // Set the access token
-    mapboxgl: mapboxgl, // Set the mapbox-gl instance
-    marker: false,
-    placeholder: 'Enter Starting Location'
-});
+mapA.on('load', function() {
+  mapA.addSource('single-point', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: []
+    }
+  })
   
-// Add the geocoder to the map
-// map.addControl(geocoder);
+  mapA.addSource('route', {
+    type: 'geojson',
+    data: nothing
+  })
+})
+
+// When there is no route
+var nothing = turf.featureCollection([]);
 
 function assembleDirectionsURL(points) {
     // Make the TomTom API Request
@@ -178,247 +185,372 @@ async function getRouteInfo() {
   return response;
 }
 
+// Global Array holding nav points
+var globalNavRoutePoints = []
+var ranOnce = false;
 function createRoute() {
-  // When there is no route
-  var nothing = turf.featureCollection([]);
 
   var geocodeResponse = getRouteInfo();
   geocodeResponse.then((geocodeData) => {
+    
+    if (ranOnce) {
+      mapA.removeLayer('routeline-active');
+      mapA.removeLayer('routearrows');
+      mapA.removeLayer('point')
+    }
+    ranOnce = true;
 
-    var mapA = new mapboxgl.Map({
-      container: 'map', // Container ID
-      style: 'mapbox://styles/longj24/ck4z3ai5j084a1cnvlg84jzde', // Map style to use
-      center: geocodeData.features[0].center, // Starting position [lng, lat]
-      zoom: 12, // Starting zoom level
-    });
-
-    mapA.on('load', function() {
-      mapA.addSource('single-point', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: []
-        }
-      })
-
-      mapA.addLayer({
-        id: 'point',
-        source: 'single-point',
-        type: 'circle',
-        paint: {
-          'circle-radius': 10,
-          'circle-color': '#448ee4'
-        }
-      })
-
-      mapA.getSource('single-point').setData({
-        "type": "FeatureCollection",
-        "features": [{
-          "type": "Feature",
-          "properties": {},
-          "geometry": {
-            "type": "Point",
-            "coordinates": geocodeData.features[0].center
-          }
-        }]
-      });
-
-      // Object containing the latitude and longitude at the entered address
-      var latLong = {'latitude': geocodeData.features[0].center[1], 'longitude': geocodeData.features[0].center[0]};
-
-      // An array representing the coordinates of the starting point: lng, lat
-      var startingPoint = [geocodeData.features[0].center[1], geocodeData.features[0].center[0]];
-
-      // Variables to be used after making the API request
-      var routeGeoJSON;
-      var potentialRoutePoints = [];
-
-      // Get the requested route length
-      var requestedRouteLength = document.getElementById('routeDistance').value;
-
-      // Get the unit that the user wants to calculate the route in
-      var distanceUnit;
-      var radios = document.getElementsByName('unit-switch');
-      for (var i = 0; i < radios.length; ++i) {
-        if (radios[i].checked) {
-          distanceUnit = radios[i].value;
-          break;
-        }
+    mapA.addLayer({
+      id: 'routeline-active',
+      type: 'line',
+      source: 'route',
+      layout: {
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#F93800',
+        'line-width': [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          12, 3,
+          22, 12
+        ]
       }
+    }, 'waterway-label');
+  
+    mapA.addLayer({
+    id: 'routearrows',
+    type: 'symbol',
+    source: 'route',
+    layout: {
+        'symbol-placement': 'line',
+        'text-field': '▶',
+        'text-size': [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        12, 24,
+        22, 60
+        ],
+        'symbol-spacing': [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        12, 30,
+        22, 160
+        ],
+        'text-keep-upright': false
+      },
+      paint: {
+          'text-color': '#FFB500',
+          'text-halo-color': '#283350',
+          'text-halo-width': 2
+      }
+    }, 'waterway-label'); 
+    
+    mapA.addLayer({
+      id: 'point',
+      source: 'single-point',
+      type: 'circle',
+      paint: {
+        'circle-radius': 10,
+        'circle-color': '#448ee4'
+      }
+    })
 
-      // Convert the entered route length to meters
-      var distanceInMeters = 0;
-      if (distanceUnit.localeCompare("Miles") == 0) {
-        distanceInMeters = requestedRouteLength * 1609.34;
+    // Object containing the latitude and longitude at the entered address
+    var latLong = {'latitude': geocodeData.features[0].center[1], 'longitude': geocodeData.features[0].center[0]};
+
+    // An array representing the coordinates of the starting point: lat, lng
+    var startingPoint = [geocodeData.features[0].center[1], geocodeData.features[0].center[0]];
+    console.log('Fly to: ', startingPoint);
+    mapA.flyTo({
+      center: [geocodeData.features[0].center[0], geocodeData.features[0].center[1]]
+    })
+
+    // Variables to be used after making the API request
+    var routeGeoJSON;
+    var potentialRoutePoints = [];
+
+    // Get the requested route length
+    var requestedRouteLength = document.getElementById('routeDistance').value;
+
+    // Get the unit that the user wants to calculate the route in
+    var distanceUnit;
+    var radios = document.getElementsByName('unit-switch');
+    for (var i = 0; i < radios.length; ++i) {
+      if (radios[i].checked) {
+        distanceUnit = radios[i].value;
+        break;
+      }
+    }
+
+    // Convert the entered route length to meters
+    var distanceInMeters = 0;
+    if (distanceUnit.localeCompare("Miles") == 0) {
+      distanceInMeters = requestedRouteLength * 1609.34;
+    } else {
+      distanceInMeters = requestedRouteLength * 1000;
+    }
+
+    // Get a random point within the given circumference
+    const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, distanceInMeters * .35);
+
+    // Add the starting point to the potential route points array and calculate the ending point
+    potentialRoutePoints.push(startingPoint);
+    var pointToAdd = [randomCircumferencePoint.latitude, randomCircumferencePoint.longitude];
+    potentialRoutePoints.push(pointToAdd);
+    globalNavRoutePoints.push(startingPoint);
+    globalNavRoutePoints.push(pointToAdd);
+
+    // Make a request to get the route to the randomly generated point
+    var totalRouteDistance = 0;
+    var response = makeNavRequest(potentialRoutePoints);
+    response.then((data) => {
+
+      // If no route can be found
+      if(!data.routes[0]) {
+        console.log('No Route of that length found');
       } else {
-        distanceInMeters = requestedRouteLength * 1000;
-      }
+        
+        // Update the total route distance
+        totalRouteDistance += data.routes[0].summary.lengthInMeters
 
-      // Get a random point within the given circumference
-      const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, distanceInMeters * .35);
+        // Get the coordinates that make up the route
+        var originalRoutePoints = data.routes[0].legs[0].points;
+        var newRoutePoints = []
 
-      // Add the starting point to the potential route points array and calculate the ending point
-      potentialRoutePoints.push(startingPoint);
-      var pointToAdd = [randomCircumferencePoint.latitude, randomCircumferencePoint.longitude];
-      potentialRoutePoints.push(pointToAdd);
+        // Convert the route coordinates to a 2d array with [lng, lat] elements
+        for (var i = 0; i < originalRoutePoints.length; ++i) {
+          newRoutePoints[i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
+        }
 
-      // Make a request to get the route to the randomly generated point
-      var totalRouteDistance = 0;
-      var response = makeNavRequest(potentialRoutePoints);
-      response.then((data) => {
+        // If a cycle can be made between the starting and ending points
+        if (data.routes.length > 1) {
 
-        // If no route can be found
-        if(!data.routes[0]) {
-          console.log('No Route of that length found');
-        } else {
-          
-          // Update the total route distance
-          totalRouteDistance += data.routes[0].summary.lengthInMeters
+          // Make the request to get the returning route
+          potentialRoutePoints.length = 0;
+          potentialRoutePoints.push(pointToAdd);
+          potentialRoutePoints.push(startingPoint);
+          var returnRequest = makeNavRequest(potentialRoutePoints);
 
-          // Get the coordinates that make up the route
-          var originalRoutePoints = data.routes[0].legs[0].points;
-          var newRoutePoints = []
+          returnRequest.then((returnData) => {
 
-          // Convert the route coordinates to a 2d array with [lng, lat] elements
-          for (var i = 0; i < originalRoutePoints.length; ++i) {
-            newRoutePoints[i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
-          }
+            // Update the total route distance
+            totalRouteDistance += returnData.routes[0].summary.lengthInMeters
 
-          // If a cycle can be made between the starting and ending points
-          if (data.routes.length > 1) {
-
-            // Make the request to get the returning route
-            potentialRoutePoints.length = 0;
-            potentialRoutePoints.push(pointToAdd);
-            potentialRoutePoints.push(startingPoint);
-            var returnRequest = makeNavRequest(potentialRoutePoints);
-
-            returnRequest.then((returnData) => {
-
-              // Update the total route distance
-              totalRouteDistance += returnData.routes[0].summary.lengthInMeters
-
-              if (distanceUnit.localeCompare("Miles") == 0) {
-                totalRouteDistance = totalRouteDistance * 0.000621371;
-              } else {
-                totalRouteDistance = totalRouteDistance * 0.001;
-              }
-
-              // Display distance to the user
-              var displayDistance = document.getElementById('routeInfo');
-              displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
-
-              originalRoutePoints.length = 0;
-              originalRoutePoints = returnData.routes[1].legs[0].points;
-              
-              var newRoutePointsLength = newRoutePoints.length;
-
-              // Convert the returning route coordinates to a 2d array with [lng, lat] elements
-              // Append the returning route coordinates to newRoutePoints array
-              for (var i = 0; i < originalRoutePoints.length; ++i) {
-                newRoutePoints[newRoutePointsLength + i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
-              }
-              console.log(newRoutePoints);
-
-              // Create the geometry to plot the route
-              var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
-
-              routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
-
-              // Update the `route` source by getting the route source
-              // and setting the data equal to routeGeoJSON
-              mapA.getSource('route').setData(routeGeoJSON);
-            })
-          } else {
-            // If a cycle cannot be made - the route will now be an out and back
             if (distanceUnit.localeCompare("Miles") == 0) {
               totalRouteDistance = totalRouteDistance * 0.000621371;
             } else {
               totalRouteDistance = totalRouteDistance * 0.001;
             }
-            console.log('one route, the distance is: ', totalRouteDistance * 2, distanceUnit);
-            totalRouteDistance = totalRouteDistance * 2;
 
             // Display distance to the user
             var displayDistance = document.getElementById('routeInfo');
             displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
 
-            // The route points as latitude longitude objects
-            var originalRoutePoints = data.routes[0].legs[0].points;
-            var newRoutePoints = []
+            originalRoutePoints.length = 0;
+            originalRoutePoints = returnData.routes[1].legs[0].points;
+            
+            var newRoutePointsLength = newRoutePoints.length;
 
-            // Convert the route points to a 2d array with [lng, lat] elements
+            // Convert the returning route coordinates to a 2d array with [lng, lat] elements
+            // Append the returning route coordinates to newRoutePoints array
             for (var i = 0; i < originalRoutePoints.length; ++i) {
-              newRoutePoints[i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
+              newRoutePoints[newRoutePointsLength + i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
             }
 
+            // Create the geometry to plot the route
             var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
 
             routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
 
+            // Update the `route` source by getting the route source
+            // and setting the data equal to routeGeoJSON
             mapA.getSource('route').setData(routeGeoJSON);
+          })
+        } else {
+          // If a cycle cannot be made - the route will now be an out and back
+          if (distanceUnit.localeCompare("Miles") == 0) {
+            totalRouteDistance = totalRouteDistance * 0.000621371;
+          } else {
+            totalRouteDistance = totalRouteDistance * 0.001;
           }
+          console.log('one route, the distance is: ', totalRouteDistance * 2, distanceUnit);
+          totalRouteDistance = totalRouteDistance * 2;
+
+          // Display distance to the user
+          var displayDistance = document.getElementById('routeInfo');
+          displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
+
+          // The route points as latitude longitude objects
+          var originalRoutePoints = data.routes[0].legs[0].points;
+          var newRoutePoints = []
+
+          // Convert the route points to a 2d array with [lng, lat] elements
+          for (var i = 0; i < originalRoutePoints.length; ++i) {
+            newRoutePoints[i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
+          }
+
+          var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
+
+          routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
+
+          mapA.getSource('route').setData(routeGeoJSON);
         }
-      })
-      // Clearing potentialRoutePoints so new routes can be created
-      potentialRoutePoints.length = 0;
+      }
+    })
+    // Clearing potentialRoutePoints so new routes can be created
+    potentialRoutePoints.length = 0;
+    
+    mapA.getSource('single-point').setData({
+      "type": "FeatureCollection",
+      "features": [{
+        "type": "Feature",
+        "properties": {},
+        "geometry": {
+          "type": "Point",
+          "coordinates": geocodeData.features[0].center
+        }
+      }]
+    });
+  })
+}
 
-      mapA.addSource('route', {
-        type: 'geojson',
-        data: nothing
-      })
+var marker;
+function editRoute() {
+  marker = new mapboxgl.Marker({
+    draggable: true
+  }).setLngLat([-122.25948, 37.87221]).addTo(mapA);
+  marker.on('dragend', onDragEnd);
+}
 
-      mapA.addLayer({
-          id: 'routeline-active',
-          type: 'line',
-          source: 'route',
-          layout: {
-            'line-join': 'round',
-            'line-cap': 'round'
-          },
-          paint: {
-            'line-color': '#F93800',
-            'line-width': [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              12, 3,
-              22, 12
-            ]
+function onDragEnd() {
+  var lngLat = marker.getLngLat();
+  var tempNavPoints = globalNavRoutePoints;
+  tempNavPoints.push(lngLat);
+  var response = makeNavRequest(tempNavPoints);
+  response.then((data) => {
+    var totalRouteDistance;
+    var routeGeoJSON;
+    // If no route can be found
+    if(!data.routes[0]) {
+      console.log('No Route of that length found');
+    } else {
+      
+      // Update the total route distance
+      totalRouteDistance += data.routes[0].summary.lengthInMeters
+
+      // Get the coordinates that make up the route
+      var originalRoutePoints = data.routes[0].legs[0].points;
+      var newRoutePoints = []
+
+      // Convert the route coordinates to a 2d array with [lng, lat] elements
+      for (var i = 0; i < originalRoutePoints.length; ++i) {
+        newRoutePoints[i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
+      }
+
+      // If a cycle can be made between the starting and ending points
+      if (data.routes.length > 1) {
+
+        // Make the request to get the returning route
+        tempNavPoints.length = 0;
+        tempNavPoints.push(pointToAdd);
+        tempNavPoints.push(startingPoint);
+        var returnRequest = makeNavRequest(tempNavPoints);
+
+        returnRequest.then((returnData) => {
+
+          // Update the total route distance
+          totalRouteDistance += returnData.routes[0].summary.lengthInMeters
+
+          if (distanceUnit.localeCompare("Miles") == 0) {
+            totalRouteDistance = totalRouteDistance * 0.000621371;
+          } else {
+            totalRouteDistance = totalRouteDistance * 0.001;
           }
-        }, 'waterway-label');
 
-      mapA.addLayer({
-      id: 'routearrows',
-      type: 'symbol',
+          // Display distance to the user
+          var displayDistance = document.getElementById('routeInfo');
+          displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
+
+          originalRoutePoints.length = 0;
+          originalRoutePoints = returnData.routes[1].legs[0].points;
+          
+          var newRoutePointsLength = newRoutePoints.length;
+
+          // Convert the returning route coordinates to a 2d array with [lng, lat] elements
+          // Append the returning route coordinates to newRoutePoints array
+          for (var i = 0; i < originalRoutePoints.length; ++i) {
+            newRoutePoints[newRoutePointsLength + i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
+          }
+
+          // Create the geometry to plot the route
+          var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
+
+          routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
+
+          // Update the `route` source by getting the route source
+          // and setting the data equal to routeGeoJSON
+          mapA.getSource('route').setData(routeGeoJSON);
+        })
+      } else {
+        // If a cycle cannot be made - the route will now be an out and back
+        if (distanceUnit.localeCompare("Miles") == 0) {
+          totalRouteDistance = totalRouteDistance * 0.000621371;
+        } else {
+          totalRouteDistance = totalRouteDistance * 0.001;
+        }
+        console.log('one route, the distance is: ', totalRouteDistance * 2, distanceUnit);
+        totalRouteDistance = totalRouteDistance * 2;
+
+        // Display distance to the user
+        var displayDistance = document.getElementById('routeInfo');
+        displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
+
+        // The route points as latitude longitude objects
+        var originalRoutePoints = data.routes[0].legs[0].points;
+        var newRoutePoints = []
+
+        // Convert the route points to a 2d array with [lng, lat] elements
+        for (var i = 0; i < originalRoutePoints.length; ++i) {
+          newRoutePoints[i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
+        }
+
+        var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
+
+        routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
+
+        mapA.getSource('route').setData(routeGeoJSON);
+      }
+    }
+  })
+  mapA.addSource('editRoute', {
+    type: 'geojson',
+    data: nothing
+  })
+
+  mapA.addLayer({
+      id: 'routeline-active',
+      type: 'line',
       source: 'route',
       layout: {
-          'symbol-placement': 'line',
-          'text-field': '▶',
-          'text-size': [
+        'line-join': 'round',
+        'line-cap': 'round'
+      },
+      paint: {
+        'line-color': '#eb7a34',
+        'line-width': [
           "interpolate",
           ["linear"],
           ["zoom"],
-          12, 24,
-          22, 60
-          ],
-          'symbol-spacing': [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          12, 30,
-          22, 160
-          ],
-          'text-keep-upright': false
-        },
-        paint: {
-            'text-color': '#FFB500',
-            'text-halo-color': '#283350',
-            'text-halo-width': 2
-        }
-      }, 'waterway-label');    
-    })
-  })
+          12, 3,
+          22, 12
+        ]
+      }
+    }, 'waterway-label');
 }
 
 var searchInput = document.getElementById('geocoder');
@@ -426,6 +558,9 @@ searchInput.addEventListener('keyup', filterLocationSearch);
 
 var createRouteBtn = document.getElementById('makeRoute');
 createRouteBtn.addEventListener('click', createRoute);
+
+var editRouteBtn = document.getElementById('editRoute');
+editRouteBtn.addEventListener('click', editRoute);
 },{"random-location":1}]},{},[2]);
 
 function fillInSearchBox(location) {

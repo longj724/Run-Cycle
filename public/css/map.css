@@ -19,7 +19,6 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    flex-wrap: flex;
     background-color: #283350;
     height: 12vh;
     width: 100%;
@@ -219,4 +218,16 @@ body {
     margin-left: 1vw;
     margin-right: 1vw;
     color: #283350;
+}
+
+#toolBar {
+    width: 2.5vw;
+    height: 7vh;
+    margin-top: 20vh;
+    background-color: #e2e2e2;
+    z-index: 2;
+    margin-left: 1vw;
+    float: left;
+    position: relative;
+    border-radius: 5px;
 }
