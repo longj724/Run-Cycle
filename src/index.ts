@@ -4,6 +4,9 @@ import hbs from 'hbs';
 
 const app = express();
 
+// Get the Heroku Port
+var port  = process.env.Port || 3000
+
 // Define paths for Express config
 const publicDirectoryPath = path.join(__dirname, '../public');
 const viewsPath = path.join(__dirname, '../templates/views');
@@ -20,6 +23,6 @@ app.get('', (req, res) => {
     res.render('index');
 })
 
-app.listen(3000, () => {
+app.listen(port, () => {
     console.log("started");
 })
