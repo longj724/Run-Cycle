@@ -104,7 +104,7 @@ mapboxgl.accessToken = apiKey.mapBoxKey;
 var mapA = new mapboxgl.Map({
     container: 'map', // Container ID
     style: 'mapbox://styles/longj24/ck4z3ai5j084a1cnvlg84jzde', // Map style to use
-    center: [-122.25948, 37.87221], // Starting position [lng, lat]
+    center: [-83.7382, 42.2780], // Starting position [lng, lat]
     zoom: 12, // Starting zoom level
 });
 
@@ -126,14 +126,20 @@ mapA.on('load', function() {
 // When there is no route
 var nothing = turf.featureCollection([]);
 
-function assembleDirectionsURL(points) {
-    // Make the TomTom API Request
-    return 'https://api.tomtom.com/routing/1/calculateRoute/' + points.join(':')  + '/json'
-     + '?key=' + apiKey.tomtomKey + '&travelMode=pedestrian&maxAlternatives=5&windingness=low&routeType=thrilling';
+function assembleDirectionsURL(points, bestOrder) {
+    if (bestOrder) {
+      // Make the TomTom API request without best order
+      return 'https://api.tomtom.com/routing/1/calculateRoute/' + points.join(':')  + '/json'
+      + '?key=' + apiKey.tomtomKey + '&travelMode=pedestrian&computeBestOrder=true';
+    } else{
+      // Make the TomTom API request without best order
+      return 'https://api.tomtom.com/routing/1/calculateRoute/' + points.join(':')  + '/json'
+      + '?key=' + apiKey.tomtomKey + '&travelMode=pedestrian&maxAlternatives=5';
+    }
 }
 
-async function makeNavRequest(coordinates) {
-    var response = await fetch(assembleDirectionsURL(coordinates));
+async function makeNavRequest(coordinates, bestOrder) {
+    var response = await fetch(assembleDirectionsURL(coordinates, bestOrder));
     var data = await response.json();
     return data;
 }
@@ -265,7 +271,6 @@ function createRoute() {
 
     // An array representing the coordinates of the starting point: lat, lng
     var startingPoint = [geocodeData.features[0].center[1], geocodeData.features[0].center[0]];
-    console.log('Fly to: ', startingPoint);
     mapA.flyTo({
       center: [geocodeData.features[0].center[0], geocodeData.features[0].center[1]]
     })
@@ -296,7 +301,7 @@ function createRoute() {
     }
 
     // Get a random point within the given circumference
-    const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, distanceInMeters * .35);
+    const randomCircumferencePoint = randomLocation.randomCircumferencePoint(latLong, distanceInMeters * .40);
 
     // Add the starting point to the potential route points array and calculate the ending point
     potentialRoutePoints.push(startingPoint);
@@ -307,7 +312,7 @@ function createRoute() {
 
     // Make a request to get the route to the randomly generated point
     var totalRouteDistance = 0;
-    var response = makeNavRequest(potentialRoutePoints);
+    var response = makeNavRequest(potentialRoutePoints, false);
     response.then((data) => {
 
       // If no route can be found
@@ -334,12 +339,12 @@ function createRoute() {
           potentialRoutePoints.length = 0;
           potentialRoutePoints.push(pointToAdd);
           potentialRoutePoints.push(startingPoint);
-          var returnRequest = makeNavRequest(potentialRoutePoints);
+          var returnRequest = makeNavRequest(potentialRoutePoints, false);
 
           returnRequest.then((returnData) => {
 
             // Update the total route distance
-            totalRouteDistance += returnData.routes[0].summary.lengthInMeters
+            totalRouteDistance += returnData.routes[1].summary.lengthInMeters
 
             if (distanceUnit.localeCompare("Miles") == 0) {
               totalRouteDistance = totalRouteDistance * 0.000621371;
@@ -378,7 +383,6 @@ function createRoute() {
           } else {
             totalRouteDistance = totalRouteDistance * 0.001;
           }
-          console.log('one route, the distance is: ', totalRouteDistance * 2, distanceUnit);
           totalRouteDistance = totalRouteDistance * 2;
 
           // Display distance to the user
@@ -423,119 +427,34 @@ var marker;
 function editRoute() {
   marker = new mapboxgl.Marker({
     draggable: true
-  }).setLngLat([-122.25948, 37.87221]).addTo(mapA);
+  }).setLngLat(mapA.getCenter()).addTo(mapA);
   marker.on('dragend', onDragEnd);
 }
-
+var editRouteOnce = false;
 function onDragEnd() {
+  // Get the lng,lat of where the marker is placed
   var lngLat = marker.getLngLat();
+  var latLng = [lngLat.lat, lngLat.lng];
+
+  // Add the marked point to an array
   var tempNavPoints = globalNavRoutePoints;
-  tempNavPoints.push(lngLat);
-  var response = makeNavRequest(tempNavPoints);
-  response.then((data) => {
-    var totalRouteDistance;
-    var routeGeoJSON;
-    // If no route can be found
-    if(!data.routes[0]) {
-      console.log('No Route of that length found');
-    } else {
-      
-      // Update the total route distance
-      totalRouteDistance += data.routes[0].summary.lengthInMeters
+  tempNavPoints.push(latLng);
 
-      // Get the coordinates that make up the route
-      var originalRoutePoints = data.routes[0].legs[0].points;
-      var newRoutePoints = []
-
-      // Convert the route coordinates to a 2d array with [lng, lat] elements
-      for (var i = 0; i < originalRoutePoints.length; ++i) {
-        newRoutePoints[i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
-      }
-
-      // If a cycle can be made between the starting and ending points
-      if (data.routes.length > 1) {
-
-        // Make the request to get the returning route
-        tempNavPoints.length = 0;
-        tempNavPoints.push(pointToAdd);
-        tempNavPoints.push(startingPoint);
-        var returnRequest = makeNavRequest(tempNavPoints);
-
-        returnRequest.then((returnData) => {
-
-          // Update the total route distance
-          totalRouteDistance += returnData.routes[0].summary.lengthInMeters
-
-          if (distanceUnit.localeCompare("Miles") == 0) {
-            totalRouteDistance = totalRouteDistance * 0.000621371;
-          } else {
-            totalRouteDistance = totalRouteDistance * 0.001;
-          }
-
-          // Display distance to the user
-          var displayDistance = document.getElementById('routeInfo');
-          displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
-
-          originalRoutePoints.length = 0;
-          originalRoutePoints = returnData.routes[1].legs[0].points;
-          
-          var newRoutePointsLength = newRoutePoints.length;
-
-          // Convert the returning route coordinates to a 2d array with [lng, lat] elements
-          // Append the returning route coordinates to newRoutePoints array
-          for (var i = 0; i < originalRoutePoints.length; ++i) {
-            newRoutePoints[newRoutePointsLength + i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
-          }
-
-          // Create the geometry to plot the route
-          var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
-
-          routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
-
-          // Update the `route` source by getting the route source
-          // and setting the data equal to routeGeoJSON
-          mapA.getSource('route').setData(routeGeoJSON);
-        })
-      } else {
-        // If a cycle cannot be made - the route will now be an out and back
-        if (distanceUnit.localeCompare("Miles") == 0) {
-          totalRouteDistance = totalRouteDistance * 0.000621371;
-        } else {
-          totalRouteDistance = totalRouteDistance * 0.001;
-        }
-        console.log('one route, the distance is: ', totalRouteDistance * 2, distanceUnit);
-        totalRouteDistance = totalRouteDistance * 2;
-
-        // Display distance to the user
-        var displayDistance = document.getElementById('routeInfo');
-        displayDistance.innerHTML = 'Distance: ' + totalRouteDistance.toFixed(2) + ' ' + distanceUnit;
-
-        // The route points as latitude longitude objects
-        var originalRoutePoints = data.routes[0].legs[0].points;
-        var newRoutePoints = []
-
-        // Convert the route points to a 2d array with [lng, lat] elements
-        for (var i = 0; i < originalRoutePoints.length; ++i) {
-          newRoutePoints[i] = [originalRoutePoints[i].longitude, originalRoutePoints[i].latitude];
-        }
-
-        var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
-
-        routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
-
-        mapA.getSource('route').setData(routeGeoJSON);
-      }
-    }
-  })
-  mapA.addSource('editRoute', {
-    type: 'geojson',
-    data: nothing
-  })
+  if (editRouteOnce) {
+    mapA.removeLayer('editline-active');
+  } else {
+    // Add sources for the new route
+    mapA.addSource('editRoute', {
+      type: 'geojson',
+      data: nothing
+    })
+  }
+  editRouteOnce = true;
 
   mapA.addLayer({
-      id: 'routeline-active',
+      id: 'editline-active',
       type: 'line',
-      source: 'route',
+      source: 'editRoute',
       layout: {
         'line-join': 'round',
         'line-cap': 'round'
@@ -551,6 +470,101 @@ function onDragEnd() {
         ]
       }
     }, 'waterway-label');
+
+  // Get the unit that the user wants to calculate the route in
+  var distanceUnit;
+  var radios = document.getElementsByName('unit-switch');
+  for (var i = 0; i < radios.length; ++i) {
+    if (radios[i].checked) {
+      distanceUnit = radios[i].value;
+      break;
+    }
+  }
+
+  var response = makeNavRequest(tempNavPoints, true);
+  response.then((data) => {
+    var totalRouteDistance;
+    var routeGeoJSON;
+    // If no route can be found
+    if(!data.routes[0]) {
+      console.log('No Route of that length found');
+    } else {
+      
+      console.log('The first data is: ', data);
+
+      // Update the total route distance
+      totalRouteDistance += data.routes[0].summary.lengthInMeters
+
+      // Get the coordinates that make up the route
+      var firstLegRoutePoints = data.routes[0].legs[0].points;
+      var secondLegRoutePoints = data.routes[0].legs[1].points;
+      var newRoutePoints = []
+
+      // Convert the route coordinates to a 2d array with [lng, lat] elements
+      // For the first leg
+      for (var i = 0; i < firstLegRoutePoints.length; ++i) {
+        newRoutePoints[i] = [firstLegRoutePoints[i].longitude, firstLegRoutePoints[i].latitude];
+      }
+      
+      // Convert the route points for the second leg
+      for (var i = 0; i < secondLegRoutePoints.length; ++i) {
+        newRoutePoints.push([secondLegRoutePoints[i].longitude, secondLegRoutePoints[i].latitude]);
+      }
+
+      // If a cycle can be made between the starting and ending points
+      if (data.routes.length == 0) {
+
+        // Swap starting and ending points;
+        // var temp = newRoutePoints[0];
+        // newRoutePoints[0] = newRoutePoints[newRoutePoints.length - 1];
+        // newRoutePoints[newRoutePoints.length - 1] = temp;
+        console.log('In the if the data is: ', data)
+        var returnRequest = makeNavRequest(newRoutePoints, true);
+
+        returnRequest.then((returnData) => {
+
+          if (distanceUnit.localeCompare("Miles") == 0) {
+            totalRouteDistance = totalRouteDistance * 0.000621371;
+          } else {
+            totalRouteDistance = totalRouteDistance * 0.001;
+          }
+
+          firstLegRoutePoints.length = 0;
+          firstLegRoutePoints = returnData.routes[0].legs[0].points;
+          secondLegRoutePoints.length = 0;
+          secondLegRoutePoints = returnData.routes[0].legs[1].points;
+
+          // Convert the returning route coordinates to a 2d array with [lng, lat] elements
+          // Append the returning route coordinates to newRoutePoints array
+          for (var i = 0; i < firstLegRoutePoints.length; ++i) {
+            newRoutePoints.push([firstLegRoutePoints[i].longitude, firstLegRoutePoints[i].latitude]);
+          }
+
+          // Conver the route points for the second leg
+          for (var i = 0; i < secondLegRoutePoints.length; ++i) {
+            newRoutePoints.push([secondLegRoutePoints[i].longitude, secondLegRoutePoints[i].latitude]);
+          }
+
+          // Create the geometry to plot the route
+          var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
+
+          routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
+
+          // Update the `route` source by getting the route source
+          // and setting the data equal to routeGeoJSON
+          mapA.getSource('editRoute').setData(routeGeoJSON);
+        })
+      } else {
+        console.log('One Route, the data is: ', data);
+
+        var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
+
+        routeGeoJSON = turf.featureCollection([turf.feature(geometryObject)]);
+
+        mapA.getSource('editRoute').setData(routeGeoJSON);
+      }
+    }
+  })
 }
 
 var searchInput = document.getElementById('geocoder');
