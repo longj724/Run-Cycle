@@ -573,8 +573,8 @@ searchInput.addEventListener('keyup', filterLocationSearch);
 var createRouteBtn = document.getElementById('makeRoute');
 createRouteBtn.addEventListener('click', createRoute);
 
-var editRouteBtn = document.getElementById('editRoute');
-editRouteBtn.addEventListener('click', editRoute);
+// var editRouteBtn = document.getElementById('editRoute');
+// editRouteBtn.addEventListener('click', editRoute);
 },{"random-location":1}]},{},[2]);
 
 function fillInSearchBox(location) {

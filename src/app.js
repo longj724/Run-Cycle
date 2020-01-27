@@ -5,7 +5,7 @@ const express = require('express');
 const app = express();
 
 // Get the Heroku Port
-var port  = process.env.Port || 3000
+var port  = process.env.PORT || 3000
 
 // Define paths for Express config
 const publicDirectoryPath = path.join(__dirname, '../public');
