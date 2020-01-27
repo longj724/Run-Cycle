@@ -178,7 +178,7 @@ function clearSearchFilter2() {
 }
 
 async function assembleGeocodeURL(location) {
-  var key = apiKey.mapbox;
+  var key = apiKeys.mapbox;
   var response = await fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + 
   location + '?access_token=' + key);
   var data = await response.json();
