@@ -98,11 +98,6 @@ module.exports = {
 },{}],2:[function(require,module,exports){
 const randomLocation = require('random-location');
 
-var correctKeys = fetch('').then((data) => {
-  console.log('The data is: ', data)
-})
-
-
 mapboxgl.accessToken = apiKeys.mapbox;
 
 // Creates map and geocoding
@@ -132,7 +127,7 @@ mapA.on('load', function() {
 var nothing = turf.featureCollection([]);
 
 function assembleDirectionsURL(points, bestOrder) {
-    var key = process.env(TOMTOM_KEY);
+    var key = apiKeys.tomtom;
     if (bestOrder) {
       // Make the TomTom API request without best order
       return 'https://api.tomtom.com/routing/1/calculateRoute/' + points.join(':')  + '/json'
@@ -525,7 +520,6 @@ function onDragEnd() {
         // var temp = newRoutePoints[0];
         // newRoutePoints[0] = newRoutePoints[newRoutePoints.length - 1];
         // newRoutePoints[newRoutePoints.length - 1] = temp;
-        console.log('In the if the data is: ', data)
         var returnRequest = makeNavRequest(newRoutePoints, true);
 
         returnRequest.then((returnData) => {
@@ -562,7 +556,6 @@ function onDragEnd() {
           mapA.getSource('editRoute').setData(routeGeoJSON);
         })
       } else {
-        console.log('One Route, the data is: ', data);
 
         var geometryObject = {'coordinates': newRoutePoints, 'type': 'LineString'};
 
