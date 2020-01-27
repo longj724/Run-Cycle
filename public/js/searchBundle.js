@@ -98,7 +98,12 @@ module.exports = {
 },{}],2:[function(require,module,exports){
 const randomLocation = require('random-location');
 
-mapboxgl.accessToken = process.env.MAPBOX_KEY;
+var correctKeys = fetch('').then((data) => {
+  console.log('The data is: ', data)
+})
+
+
+mapboxgl.accessToken = apiKeys.mapbox;
 
 // Creates map and geocoding
 var mapA = new mapboxgl.Map({
@@ -178,7 +183,7 @@ function clearSearchFilter2() {
 }
 
 async function assembleGeocodeURL(location) {
-  var key = process.env.MAPBOX_KEY;
+  var key = apiKey.mapbox;
   var response = await fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + 
   location + '?access_token=' + key);
   var data = await response.json();

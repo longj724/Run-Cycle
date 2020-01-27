@@ -1,6 +1,7 @@
 const path = require('path');
 const hbs = require('hbs');
 const express = require('express');
+require('dotenv').config()
 
 const app = express();
 
@@ -20,7 +21,10 @@ hbs.registerPartials(partialsPath);
 app.use(express.static(publicDirectoryPath));
 
 app.get('', (req, res) => {
-    res.render('index');
+    res.render('index', {
+        tomtom: process.env.TOMTOM_KEY,
+        mapbox: process.env.MAPBOX_KEY
+    })
 })
 
 app.listen(port, () => {
