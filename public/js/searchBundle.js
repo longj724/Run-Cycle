@@ -98,7 +98,7 @@ module.exports = {
 },{}],2:[function(require,module,exports){
 const randomLocation = require('random-location');
 
-mapboxgl.accessToken = apiKey.mapBoxKey || process.env.MAPBOX_KEY;
+mapboxgl.accessToken = process.env.MAPBOX_KEY;
 
 // Creates map and geocoding
 var mapA = new mapboxgl.Map({
@@ -127,7 +127,7 @@ mapA.on('load', function() {
 var nothing = turf.featureCollection([]);
 
 function assembleDirectionsURL(points, bestOrder) {
-    var key = apiKey.tomtomKey || process.env(TOMTOM_KEY);
+    var key = process.env(TOMTOM_KEY);
     if (bestOrder) {
       // Make the TomTom API request without best order
       return 'https://api.tomtom.com/routing/1/calculateRoute/' + points.join(':')  + '/json'
@@ -178,7 +178,7 @@ function clearSearchFilter2() {
 }
 
 async function assembleGeocodeURL(location) {
-  var key = apiKey.mapBoxKey || process.env.MAPBOX_KEY;
+  var key = process.env.MAPBOX_KEY;
   var response = await fetch('https://api.mapbox.com/geocoding/v5/mapbox.places/' + 
   location + '?access_token=' + key);
   var data = await response.json();
